@@ -6,6 +6,8 @@ import { matchesAny } from './glob';
 
 type Node = FolderNode | FileNode | MessageNode;
 
+type ViewState = 'unviewed' | 'viewed' | 'stale';
+
 interface FolderNode {
   kind: 'folder';
   name: string;
@@ -16,6 +18,7 @@ interface FolderNode {
 interface FileNode {
   kind: 'file';
   file: ChangedFile;
+  viewState: ViewState;
 }
 
 interface MessageNode {
@@ -46,12 +49,14 @@ export class ChangedFilesProvider implements vscode.TreeDataProvider<Node> {
   private async load(): Promise<void> {
     this.error = undefined;
     let files: ChangedFile[] = [];
+    let viewed: Record<string, string> = {};
     try {
       const cfg = vscode.workspace.getConfiguration('showDiff');
       const configured =
         (await this.store.getBaseBranch()) ?? DEFAULT_BASE_BRANCH;
       const base = await this.git.resolveBase(configured);
       const all = await this.git.changedFiles(base);
+      viewed = await this.store.getViewed();
 
       const hide = cfg.get<boolean>('hideTestFiles', false);
       const patterns = cfg.get<string[]>('testFilePatterns', []);
@@ -71,7 +76,7 @@ export class ChangedFilesProvider implements vscode.TreeDataProvider<Node> {
       this.loaded = true;
       return;
     }
-    this.root = buildTree(files);
+    this.root = buildTree(files, viewed);
     if (this.hiddenCount > 0) {
       const s = this.hiddenCount === 1 ? '' : 's';
       this.root.push({
@@ -105,7 +110,19 @@ export class ChangedFilesProvider implements vscode.TreeDataProvider<Node> {
   }
 }
 
-function buildTree(files: ChangedFile[]): Node[] {
+function viewStateOf(
+  file: ChangedFile,
+  viewed: Record<string, string>,
+): ViewState {
+  const reviewed = viewed[file.path];
+  if (reviewed === undefined) return 'unviewed';
+  return reviewed === file.hash ? 'viewed' : 'stale';
+}
+
+function buildTree(
+  files: ChangedFile[],
+  viewed: Record<string, string>,
+): Node[] {
   const root: FolderNode = {
     kind: 'folder',
     name: '',
@@ -132,7 +149,11 @@ function buildTree(files: ChangedFile[]): Node[] {
       parent = folder;
       parentPath = fullPath;
     }
-    parent.children.push({ kind: 'file', file });
+    parent.children.push({
+      kind: 'file',
+      file,
+      viewState: viewStateOf(file, viewed),
+    });
   }
 
   sortFolder(root);
@@ -208,18 +229,35 @@ function toTreeItem(node: Node): vscode.TreeItem {
     vscode.TreeItemCollapsibleState.None,
   );
   item.resourceUri = vscode.Uri.file(file.path);
-  item.tooltip =
+  const base =
     (file.status === 'R' || file.status === 'C') && file.oldPath
       ? `${statusLabel(file.status)}: ${file.oldPath} → ${file.path}`
       : `${statusLabel(file.status)}: ${file.path}`;
-  item.contextValue = 'file';
   item.command = {
     command: 'showDiff.openDiff',
     title: 'Open Diff',
     arguments: [file],
   };
-  item.iconPath = statusIcon(file.status);
   item.id = `file:${file.path}`;
+
+  if (node.viewState === 'viewed') {
+    item.contextValue = 'file-viewed';
+    item.description = 'viewed';
+    item.tooltip = `${base}\nViewed`;
+    item.iconPath = new vscode.ThemeIcon(
+      'check',
+      new vscode.ThemeColor('testing.iconPassed'),
+    );
+  } else if (node.viewState === 'stale') {
+    item.contextValue = 'file-stale';
+    item.description = 'changed since viewed';
+    item.tooltip = `${base}\nChanged since you last viewed it`;
+    item.iconPath = statusIcon(file.status);
+  } else {
+    item.contextValue = 'file-unviewed';
+    item.tooltip = base;
+    item.iconPath = statusIcon(file.status);
+  }
   return item;
 }
 

@@ -17,6 +17,18 @@ You change the base from the status bar item or the **Branch Diff: Change Base
 Branch** command. Your choice is saved per branch (see below), so each branch
 remembers its own base.
 
+## Marking files as viewed
+
+While reviewing, hover a file and click the check icon (or right-click → **Mark
+as Viewed**) to mark it done. Viewed files show a green check; use the X icon /
+**Mark as Not Viewed** to undo.
+
+A viewed mark is tied to the file's git blob hash, not just its name. So if the
+branch owner pushes a new version and you pull it, the content hash changes and
+the file flips to **changed since viewed** (it keeps its status icon and shows
+that note), telling you exactly what moved since your last look. Viewed marks
+are stored per branch.
+
 ## Per-workspace state storage
 
 Settings like the chosen base branch are **not** stored in VS Code settings or
@@ -33,13 +45,20 @@ directory, which VS Code provides via `context.storageUri`.
   (On Linux: `~/.config/Code/...`; on Windows: `%APPDATA%\Code\...`. Use
   `Code - Insiders` instead of `Code` for Insiders builds.)
 
-- **What it holds:** a small JSON file, keyed by branch name. Currently just
-  the base branch each branch is compared against:
+- **What it holds:** a small JSON file, keyed by branch name. Per branch, the
+  base it's compared against plus the files marked viewed (path → reviewed blob
+  hash):
 
   ```json
   {
     "branches": {
-      "feature/login": { "baseBranch": "origin/main" },
+      "feature/login": {
+        "baseBranch": "origin/main",
+        "viewed": {
+          "src/auth/login.ts": "9f1c2a7e0b...",
+          "src/auth/session.ts": "3ab44de91c..."
+        }
+      },
       "feature/checkout": { "baseBranch": "origin/develop" }
     }
   }
@@ -55,15 +74,16 @@ directory, which VS Code provides via `context.storageUri`.
 ### Where it is used in code
 
 - [`src/stateStore.ts`](src/stateStore.ts) — `StateStore` reads/writes
-  `state.json`; `DEFAULT_BASE_BRANCH` is the seed used when nothing is stored.
+  `state.json` (base branch and viewed map, keyed by branch);
+  `DEFAULT_BASE_BRANCH` is the seed used when nothing is stored.
 - [`src/extension.ts`](src/extension.ts) — builds the `StateStore` from
-  `context.storageUri`, reads the base for the status bar/title/diff, and writes
-  it when you pick a new base.
+  `context.storageUri`, reads/writes the base, and handles the mark-viewed
+  commands.
 - [`src/changedFilesProvider.ts`](src/changedFilesProvider.ts) — reads the base
-  from the store to compute the changed-files list.
-
-This storage is intended to grow: planned uses include tracking which files
-you have viewed/reviewed per branch.
+  and viewed map from the store to build the changed-files tree and each file's
+  viewed state.
+- [`src/gitService.ts`](src/gitService.ts) — `changedFiles` returns each file's
+  blob hash (via `git diff --raw`), which is what viewed marks are tied to.
 
 ## Development
 

@@ -59,9 +59,43 @@
         "command": "showDiff.openDiff",
         "title": "Open Diff",
         "category": "Branch Diff"
+      },
+      {
+        "command": "showDiff.markViewed",
+        "title": "Mark as Viewed",
+        "category": "Branch Diff",
+        "icon": "$(check)"
+      },
+      {
+        "command": "showDiff.markNotViewed",
+        "title": "Mark as Not Viewed",
+        "category": "Branch Diff",
+        "icon": "$(close)"
       }
     ],
     "menus": {
+      "view/item/context": [
+        {
+          "command": "showDiff.markViewed",
+          "when": "view == showDiff.changedFiles && viewItem =~ /^file-(unviewed|stale)$/",
+          "group": "inline@1"
+        },
+        {
+          "command": "showDiff.markNotViewed",
+          "when": "view == showDiff.changedFiles && viewItem == file-viewed",
+          "group": "inline@1"
+        },
+        {
+          "command": "showDiff.markViewed",
+          "when": "view == showDiff.changedFiles && viewItem =~ /^file-(unviewed|stale)$/",
+          "group": "1_viewed@1"
+        },
+        {
+          "command": "showDiff.markNotViewed",
+          "when": "view == showDiff.changedFiles && viewItem == file-viewed",
+          "group": "1_viewed@1"
+        }
+      ],
       "view/title": [
         {
           "command": "showDiff.pickBaseBranch",

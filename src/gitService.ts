@@ -9,6 +9,8 @@ export interface ChangedFile {
   status: FileStatus | string;
   path: string;
   oldPath?: string;
+  /** git blob hash of the file's content at HEAD (old blob for deletions). */
+  hash: string;
 }
 
 export class GitService {
@@ -82,23 +84,34 @@ export class GitService {
   }
 
   async changedFiles(base: string): Promise<ChangedFile[]> {
+    // --raw gives us the source and destination blob hashes alongside the
+    // status, so we can identify each file's content version in one call.
     const out = await this.run([
       'diff',
-      '--name-status',
+      '--raw',
+      '--no-abbrev',
       '-M',
       '-C',
       `${base}...HEAD`,
     ]);
+    const ZERO = '0'.repeat(40);
     const files: ChangedFile[] = [];
     for (const line of out.split('\n')) {
-      if (!line.trim()) continue;
-      const parts = line.split('\t');
-      const code = parts[0];
-      const status = code[0];
-      if ((status === 'R' || status === 'C') && parts.length >= 3) {
-        files.push({ status, oldPath: parts[1], path: parts[2] });
-      } else if (parts.length >= 2) {
-        files.push({ status, path: parts[1] });
+      if (!line.startsWith(':')) continue;
+      const tab = line.indexOf('\t');
+      if (tab === -1) continue;
+      // meta before the first tab: "<srcmode> <dstmode> <srcsha> <dstsha> <status>"
+      const meta = line.slice(1, tab).split(' ');
+      const paths = line.slice(tab + 1).split('\t');
+      const srcSha = meta[2];
+      const dstSha = meta[3];
+      const status = (meta[4] ?? '')[0];
+      // Use the new blob; for deletions there is none, so fall back to the old.
+      const hash = dstSha && dstSha !== ZERO ? dstSha : srcSha;
+      if ((status === 'R' || status === 'C') && paths.length >= 2) {
+        files.push({ status, oldPath: paths[0], path: paths[1], hash });
+      } else if (paths.length >= 1) {
+        files.push({ status, path: paths[0], hash });
       }
     }
     return files;

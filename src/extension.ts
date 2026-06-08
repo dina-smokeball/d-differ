@@ -128,6 +128,24 @@ export async function activate(context: vscode.ExtensionContext) {
       },
     ),
 
+    vscode.commands.registerCommand(
+      'showDiff.markViewed',
+      async (node?: { file?: ChangedFile }) => {
+        if (!node?.file) return;
+        await store.setViewed(node.file.path, node.file.hash);
+        await provider.refresh();
+      },
+    ),
+
+    vscode.commands.registerCommand(
+      'showDiff.markNotViewed',
+      async (node?: { file?: ChangedFile }) => {
+        if (!node?.file) return;
+        await store.clearViewed(node.file.path);
+        await provider.refresh();
+      },
+    ),
+
     vscode.workspace.onDidChangeConfiguration(e => {
       if (e.affectsConfiguration('showDiff')) {
         updateStatusBar();

@@ -4,12 +4,14 @@ import * as vscode from 'vscode';
 export const DEFAULT_BASE_BRANCH = 'origin/develop';
 
 /**
- * State stored for a single branch of the workspace. Kept small for now;
- * file viewed/reviewed tracking will be added here later, e.g.
- * `viewed: { [path]: reviewedCommitSha }`.
+ * State stored for a single branch of the workspace: the base branch it's
+ * compared against, and the set of files marked viewed. `viewed` maps a file
+ * path to the git blob hash that was reviewed, so the mark clears itself once
+ * the file's content changes (e.g. after pulling the branch owner's update).
  */
 interface BranchState {
   baseBranch?: string;
+  viewed?: Record<string, string>;
 }
 
 /** Shape of the per-workspace state persisted to disk, keyed by branch name. */
@@ -72,6 +74,18 @@ export class StateStore {
     }
   }
 
+  /** Apply a change to the current branch's state, no-op if no branch key. */
+  private async update(fn: (b: BranchState) => BranchState): Promise<void> {
+    const key = await this.currentKey();
+    if (!key) {
+      return;
+    }
+    const state = await this.read();
+    const branches = { ...(state.branches ?? {}) };
+    branches[key] = fn(branches[key] ?? {});
+    await this.write({ ...state, branches });
+  }
+
   async getBaseBranch(): Promise<string | undefined> {
     const key = await this.currentKey();
     if (!key) {
@@ -81,13 +95,33 @@ export class StateStore {
   }
 
   async setBaseBranch(base: string): Promise<void> {
+    await this.update(b => ({ ...b, baseBranch: base }));
+  }
+
+  /** Map of path -> reviewed blob hash for the current branch. */
+  async getViewed(): Promise<Record<string, string>> {
     const key = await this.currentKey();
     if (!key) {
-      return;
+      return {};
     }
-    const state = await this.read();
-    const branches = { ...(state.branches ?? {}) };
-    branches[key] = { ...(branches[key] ?? {}), baseBranch: base };
-    await this.write({ ...state, branches });
+    return (await this.read()).branches?.[key]?.viewed ?? {};
+  }
+
+  async setViewed(path: string, hash: string): Promise<void> {
+    await this.update(b => ({
+      ...b,
+      viewed: { ...(b.viewed ?? {}), [path]: hash },
+    }));
+  }
+
+  async clearViewed(path: string): Promise<void> {
+    await this.update(b => {
+      if (!b.viewed || !(path in b.viewed)) {
+        return b;
+      }
+      const viewed = { ...b.viewed };
+      delete viewed[path];
+      return { ...b, viewed };
+    });
   }
 }
