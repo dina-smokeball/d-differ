@@ -38,13 +38,15 @@ export async function activate(context: vscode.ExtensionContext) {
   statusBar.command = 'showDiff.pickBaseBranch';
   context.subscriptions.push(statusBar);
 
-  const getBase = () =>
+  const getConfiguredBase = () =>
     vscode.workspace
       .getConfiguration('showDiff')
       .get<string>('baseBranch', 'origin/develop');
 
-  const updateStatusBar = () => {
-    const base = getBase();
+  const getBase = () => git.resolveBase(getConfiguredBase());
+
+  const updateStatusBar = async () => {
+    const base = await getBase();
     statusBar.text = `$(git-compare) ${base}`;
     statusBar.tooltip = `Branch Diff base: ${base} (click to change)`;
     statusBar.show();
@@ -52,8 +54,8 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const updateTitle = async () => {
     try {
-      const branch = await git.currentBranch();
-      treeView.description = `${branch} ↔ ${getBase()}`;
+      const [branch, base] = await Promise.all([git.currentBranch(), getBase()]);
+      treeView.description = `${branch} ↔ ${base}`;
     } catch {
       // ignore
     }
@@ -78,7 +80,7 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.window.showErrorMessage(`Failed to list branches: ${msg}`);
         return;
       }
-      const currentBase = getBase();
+      const currentBase = getConfiguredBase();
       const items: vscode.QuickPickItem[] = branches
         .filter(b => b !== head)
         .map(b => ({
@@ -121,7 +123,7 @@ export async function activate(context: vscode.ExtensionContext) {
       'showDiff.openDiff',
       async (file: ChangedFile) => {
         try {
-          await openDiff(repoRoot, file, getBase());
+          await openDiff(repoRoot, file, await getBase());
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           vscode.window.showErrorMessage(`Failed to open diff: ${msg}`);

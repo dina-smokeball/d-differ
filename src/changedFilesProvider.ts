@@ -44,7 +44,8 @@ export class ChangedFilesProvider implements vscode.TreeDataProvider<Node> {
     let files: ChangedFile[] = [];
     try {
       const cfg = vscode.workspace.getConfiguration('showDiff');
-      const base = cfg.get<string>('baseBranch', 'origin/develop');
+      const configured = cfg.get<string>('baseBranch', 'origin/develop');
+      const base = await this.git.resolveBase(configured);
       const all = await this.git.changedFiles(base);
 
       const hide = cfg.get<boolean>('hideTestFiles', false);

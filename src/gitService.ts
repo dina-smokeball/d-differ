@@ -98,4 +98,31 @@ export class GitService {
       return '';
     }
   }
+
+  async refExists(ref: string): Promise<boolean> {
+    try {
+      await this.run(['rev-parse', '--verify', '--quiet', ref]);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Resolve the effective base branch. Uses the configured ref if it exists,
+   * otherwise falls back to the first existing candidate (e.g. origin/develop
+   * not present, so compare against origin/main instead).
+   */
+  async resolveBase(configured: string): Promise<string> {
+    if (await this.refExists(configured)) {
+      return configured;
+    }
+    const fallbacks = ['origin/develop', 'origin/main', 'main', 'master'];
+    for (const candidate of fallbacks) {
+      if (candidate !== configured && (await this.refExists(candidate))) {
+        return candidate;
+      }
+    }
+    return configured;
+  }
 }
