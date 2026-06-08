@@ -53,6 +53,19 @@ export class GitService {
     return (await this.run(['rev-parse', '--abbrev-ref', 'HEAD'])).trim();
   }
 
+  /**
+   * Absolute path to the git directory (handles worktrees). HEAD lives at
+   * `<gitDir>/HEAD` and changes whenever the branch is switched, so it's a
+   * reliable thing to watch.
+   */
+  async gitDir(): Promise<string | null> {
+    try {
+      return (await this.run(['rev-parse', '--absolute-git-dir'])).trim();
+    } catch {
+      return null;
+    }
+  }
+
   async listBranches(): Promise<string[]> {
     const out = await this.run(['branch', '-a', '--format=%(refname:short)']);
     const seen = new Set<string>();

@@ -4,6 +4,10 @@
   "description": "Show diff between the current branch and a base branch",
   "version": "0.0.1",
   "publisher": "d-pod",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/dina-smokeball/d-differ.git"
+  },
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -79,11 +83,6 @@
     "configuration": {
       "title": "Branch Diff",
       "properties": {
-        "showDiff.baseBranch": {
-          "type": "string",
-          "default": "origin/develop",
-          "description": "Base branch to compare against (e.g. origin/develop, main)."
-        },
         "showDiff.hideTestFiles": {
           "type": "boolean",
           "default": false,

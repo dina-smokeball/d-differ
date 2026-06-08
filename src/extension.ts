@@ -7,10 +7,11 @@ import {
   SCHEME,
   buildVirtualUri,
 } from './baseContentProvider';
+import { StateStore, DEFAULT_BASE_BRANCH } from './stateStore';
 
 export async function activate(context: vscode.ExtensionContext) {
   const folder = vscode.workspace.workspaceFolders?.[0];
-  if (!folder) {
+  if (!folder || !context.storageUri) {
     return;
   }
   const git = new GitService(folder.uri.fsPath);
@@ -19,7 +20,8 @@ export async function activate(context: vscode.ExtensionContext) {
     return;
   }
 
-  const provider = new ChangedFilesProvider(git);
+  const store = new StateStore(context.storageUri, () => git.currentBranch());
+  const provider = new ChangedFilesProvider(git, store);
   const treeView = vscode.window.createTreeView('showDiff.changedFiles', {
     treeDataProvider: provider,
     showCollapseAll: true,
@@ -38,12 +40,10 @@ export async function activate(context: vscode.ExtensionContext) {
   statusBar.command = 'showDiff.pickBaseBranch';
   context.subscriptions.push(statusBar);
 
-  const getConfiguredBase = () =>
-    vscode.workspace
-      .getConfiguration('showDiff')
-      .get<string>('baseBranch', 'origin/develop');
+  const getConfiguredBase = async () =>
+    (await store.getBaseBranch()) ?? DEFAULT_BASE_BRANCH;
 
-  const getBase = () => git.resolveBase(getConfiguredBase());
+  const getBase = async () => git.resolveBase(await getConfiguredBase());
 
   const updateStatusBar = async () => {
     const base = await getBase();
@@ -80,7 +80,7 @@ export async function activate(context: vscode.ExtensionContext) {
         vscode.window.showErrorMessage(`Failed to list branches: ${msg}`);
         return;
       }
-      const currentBase = getConfiguredBase();
+      const currentBase = await getConfiguredBase();
       const items: vscode.QuickPickItem[] = branches
         .filter(b => b !== head)
         .map(b => ({
@@ -95,13 +95,10 @@ export async function activate(context: vscode.ExtensionContext) {
         matchOnDescription: true,
       });
       if (!picked) return;
-      await vscode.workspace
-        .getConfiguration('showDiff')
-        .update(
-          'baseBranch',
-          picked.label,
-          vscode.ConfigurationTarget.Workspace,
-        );
+      await store.setBaseBranch(picked.label);
+      await provider.refresh();
+      await updateStatusBar();
+      await updateTitle();
     }),
 
     vscode.commands.registerCommand('showDiff.toggleTestFiles', async () => {
@@ -139,6 +136,28 @@ export async function activate(context: vscode.ExtensionContext) {
       }
     }),
   );
+
+  // Refresh when the branch is switched. HEAD changes on checkout, so watch it.
+  const gitDir = await git.gitDir();
+  if (gitDir) {
+    const headWatcher = vscode.workspace.createFileSystemWatcher(
+      new vscode.RelativePattern(vscode.Uri.file(gitDir), 'HEAD'),
+    );
+    let headDebounce: ReturnType<typeof setTimeout> | undefined;
+    const onHeadChange = () => {
+      if (headDebounce) {
+        clearTimeout(headDebounce);
+      }
+      headDebounce = setTimeout(() => {
+        provider.refresh();
+        updateStatusBar();
+        updateTitle();
+      }, 150);
+    };
+    headWatcher.onDidChange(onHeadChange);
+    headWatcher.onDidCreate(onHeadChange);
+    context.subscriptions.push(headWatcher);
+  }
 
   updateStatusBar();
   await provider.refresh();

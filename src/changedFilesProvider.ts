@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import * as path from 'path';
 import { GitService, ChangedFile } from './gitService';
+import { StateStore, DEFAULT_BASE_BRANCH } from './stateStore';
 import { matchesAny } from './glob';
 
 type Node = FolderNode | FileNode | MessageNode;
@@ -32,7 +33,10 @@ export class ChangedFilesProvider implements vscode.TreeDataProvider<Node> {
   private error: string | undefined;
   private loaded = false;
 
-  constructor(private readonly git: GitService) {}
+  constructor(
+    private readonly git: GitService,
+    private readonly store: StateStore,
+  ) {}
 
   async refresh(): Promise<void> {
     await this.load();
@@ -44,7 +48,8 @@ export class ChangedFilesProvider implements vscode.TreeDataProvider<Node> {
     let files: ChangedFile[] = [];
     try {
       const cfg = vscode.workspace.getConfiguration('showDiff');
-      const configured = cfg.get<string>('baseBranch', 'origin/develop');
+      const configured =
+        (await this.store.getBaseBranch()) ?? DEFAULT_BASE_BRANCH;
       const base = await this.git.resolveBase(configured);
       const all = await this.git.changedFiles(base);
 
