@@ -56,6 +56,12 @@
         "icon": "$(eye)"
       },
       {
+        "command": "showDiff.toggleReviews",
+        "title": "Toggle File Reviews",
+        "category": "Branch Diff",
+        "icon": "$(book)"
+      },
+      {
         "command": "showDiff.openDiff",
         "title": "Open Diff",
         "category": "Branch Diff"
@@ -108,9 +114,14 @@
           "group": "navigation@2"
         },
         {
-          "command": "showDiff.refresh",
+          "command": "showDiff.toggleReviews",
           "when": "view == showDiff.changedFiles",
           "group": "navigation@3"
+        },
+        {
+          "command": "showDiff.refresh",
+          "when": "view == showDiff.changedFiles",
+          "group": "navigation@4"
         }
       ]
     },
@@ -121,6 +132,11 @@
           "type": "boolean",
           "default": false,
           "description": "Hide test/spec files and lockfiles from the changed files list."
+        },
+        "showDiff.showReviews": {
+          "type": "boolean",
+          "default": true,
+          "description": "When opening a file's diff, also open its AI review (if one exists under .local/reviews) beside it."
         },
         "showDiff.testFilePatterns": {
           "type": "array",

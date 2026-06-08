@@ -8,6 +8,7 @@ import {
   buildVirtualUri,
 } from './baseContentProvider';
 import { StateStore, DEFAULT_BASE_BRANCH } from './stateStore';
+import { ReviewService } from './reviewService';
 
 export async function activate(context: vscode.ExtensionContext) {
   const folder = vscode.workspace.workspaceFolders?.[0];
@@ -21,6 +22,7 @@ export async function activate(context: vscode.ExtensionContext) {
   }
 
   const store = new StateStore(context.storageUri, () => git.currentBranch());
+  const reviews = new ReviewService(repoRoot, () => git.currentBranch());
   const provider = new ChangedFilesProvider(git, store);
   const treeView = vscode.window.createTreeView('showDiff.changedFiles', {
     treeDataProvider: provider,
@@ -44,6 +46,11 @@ export async function activate(context: vscode.ExtensionContext) {
     (await store.getBaseBranch()) ?? DEFAULT_BASE_BRANCH;
 
   const getBase = async () => git.resolveBase(await getConfiguredBase());
+
+  const getShowReviews = () =>
+    vscode.workspace
+      .getConfiguration('showDiff')
+      .get<boolean>('showReviews', true);
 
   const updateStatusBar = async () => {
     const base = await getBase();
@@ -116,11 +123,32 @@ export async function activate(context: vscode.ExtensionContext) {
       );
     }),
 
+    vscode.commands.registerCommand('showDiff.toggleReviews', async () => {
+      const cfg = vscode.workspace.getConfiguration('showDiff');
+      const next = !cfg.get<boolean>('showReviews', true);
+      await cfg.update('showReviews', next, vscode.ConfigurationTarget.Workspace);
+      vscode.window.setStatusBarMessage(
+        next
+          ? 'Branch Diff: showing file reviews'
+          : 'Branch Diff: hiding file reviews',
+        2000,
+      );
+    }),
+
     vscode.commands.registerCommand(
       'showDiff.openDiff',
       async (file: ChangedFile) => {
         try {
           await openDiff(repoRoot, file, await getBase());
+          if (getShowReviews()) {
+            const reviewUri = await reviews.getExplanationUri(file.path);
+            if (reviewUri) {
+              await vscode.commands.executeCommand(
+                'markdown.showPreviewToSide',
+                reviewUri,
+              );
+            }
+          }
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
           vscode.window.showErrorMessage(`Failed to open diff: ${msg}`);

@@ -29,6 +29,21 @@ the file flips to **changed since viewed** (it keeps its status icon and shows
 that note), telling you exactly what moved since your last look. Viewed marks
 are stored per branch.
 
+## Showing AI reviews
+
+If the `d-branch-review` Claude Code skill has reviewed the branch, it writes
+per-file explanations under:
+
+```
+.local/reviews/<branch with "/" -> "-">/v<N>/explanations/<file path>.md
+```
+
+When the **Toggle File Reviews** button (book icon) in the view title is on,
+opening a file's diff also opens that file's review markdown beside it, if one
+exists. The latest version directory (`v<N>`) is always used. Turn the toggle
+off to just see diffs. This is controlled by the `showDiff.showReviews` setting
+(on by default); files without a review simply open as a normal diff.
+
 ## Per-workspace state storage
 
 Settings like the chosen base branch are **not** stored in VS Code settings or
@@ -84,6 +99,8 @@ directory, which VS Code provides via `context.storageUri`.
   viewed state.
 - [`src/gitService.ts`](src/gitService.ts) — `changedFiles` returns each file's
   blob hash (via `git diff --raw`), which is what viewed marks are tied to.
+- [`src/reviewService.ts`](src/reviewService.ts) — `ReviewService` finds the
+  latest review version and the per-file explanation under `.local/reviews/`.
 
 ## Development
 
