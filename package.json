@@ -1,0 +1,119 @@
+{
+  "name": "d-differ",
+  "displayName": "Branch Diff",
+  "description": "Show diff between the current branch and a base branch",
+  "version": "0.0.1",
+  "publisher": "d-pod",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "SCM Providers"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "showDiff",
+          "title": "Branch Diff",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "showDiff": [
+        {
+          "id": "showDiff.changedFiles",
+          "name": "Changed Files"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "showDiff.refresh",
+        "title": "Refresh",
+        "category": "Branch Diff",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "showDiff.pickBaseBranch",
+        "title": "Change Base Branch",
+        "category": "Branch Diff",
+        "icon": "$(git-branch)"
+      },
+      {
+        "command": "showDiff.toggleTestFiles",
+        "title": "Toggle Test Files",
+        "category": "Branch Diff",
+        "icon": "$(eye)"
+      },
+      {
+        "command": "showDiff.openDiff",
+        "title": "Open Diff",
+        "category": "Branch Diff"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "showDiff.pickBaseBranch",
+          "when": "view == showDiff.changedFiles",
+          "group": "navigation@1"
+        },
+        {
+          "command": "showDiff.toggleTestFiles",
+          "when": "view == showDiff.changedFiles",
+          "group": "navigation@2"
+        },
+        {
+          "command": "showDiff.refresh",
+          "when": "view == showDiff.changedFiles",
+          "group": "navigation@3"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Branch Diff",
+      "properties": {
+        "showDiff.baseBranch": {
+          "type": "string",
+          "default": "origin/develop",
+          "description": "Base branch to compare against (e.g. origin/develop, main)."
+        },
+        "showDiff.hideTestFiles": {
+          "type": "boolean",
+          "default": false,
+          "description": "Hide test/spec files and lockfiles from the changed files list."
+        },
+        "showDiff.testFilePatterns": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [
+            "**/*.spec.*",
+            "**/*.test.*",
+            "**/__tests__/**",
+            "**/__mocks__/**",
+            "**/package-lock.json"
+          ],
+          "description": "Glob patterns for files treated as tests/lockfiles (hidden when showDiff.hideTestFiles is true)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "vscode:prepublish": "npm run compile"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "typescript": "^5.4.0"
+  }
+}
