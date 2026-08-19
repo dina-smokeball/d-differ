@@ -47,11 +47,6 @@ export async function activate(context: vscode.ExtensionContext) {
 
   const getBase = async () => git.resolveBase(await getConfiguredBase());
 
-  const getShowReviews = () =>
-    vscode.workspace
-      .getConfiguration('showDiff')
-      .get<boolean>('showReviews', true);
-
   const updateStatusBar = async () => {
     const base = await getBase();
     statusBar.text = `$(git-compare) ${base}`;
@@ -109,14 +104,9 @@ export async function activate(context: vscode.ExtensionContext) {
     }),
 
     vscode.commands.registerCommand('showDiff.toggleTestFiles', async () => {
-      const cfg = vscode.workspace.getConfiguration('showDiff');
-      const current = cfg.get<boolean>('hideTestFiles', false);
-      await cfg.update(
-        'hideTestFiles',
-        !current,
-        vscode.ConfigurationTarget.Workspace,
-      );
-      const next = !current;
+      const next = !(await store.getHideTestFiles());
+      await store.setHideTestFiles(next);
+      await provider.refresh();
       vscode.window.setStatusBarMessage(
         next ? 'Branch Diff: hiding test files' : 'Branch Diff: showing test files',
         2000,
@@ -124,9 +114,8 @@ export async function activate(context: vscode.ExtensionContext) {
     }),
 
     vscode.commands.registerCommand('showDiff.toggleReviews', async () => {
-      const cfg = vscode.workspace.getConfiguration('showDiff');
-      const next = !cfg.get<boolean>('showReviews', true);
-      await cfg.update('showReviews', next, vscode.ConfigurationTarget.Workspace);
+      const next = !(await store.getShowReviews());
+      await store.setShowReviews(next);
       vscode.window.setStatusBarMessage(
         next
           ? 'Branch Diff: showing file reviews'
@@ -140,7 +129,7 @@ export async function activate(context: vscode.ExtensionContext) {
       async (file: ChangedFile) => {
         try {
           await openDiff(repoRoot, file, await getBase());
-          if (getShowReviews()) {
+          if (await store.getShowReviews()) {
             const reviewUri = await reviews.getExplanationUri(file.path);
             if (reviewUri) {
               await vscode.commands.executeCommand(

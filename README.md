@@ -41,13 +41,16 @@ per-file explanations under:
 When the **Toggle File Reviews** button (book icon) in the view title is on,
 opening a file's diff also opens that file's review markdown beside it, if one
 exists. The latest version directory (`v<N>`) is always used. Turn the toggle
-off to just see diffs. This is controlled by the `showDiff.showReviews` setting
-(on by default); files without a review simply open as a normal diff.
+off to just see diffs. The toggle is on by default and remembered in the
+extension's private per-workspace storage (see below), so it never touches
+`.vscode/settings.json` or the repo; files without a review simply open as a
+normal diff.
 
 ## Per-workspace state storage
 
-Settings like the chosen base branch are **not** stored in VS Code settings or
-in the repo. They live in the extension's private per-workspace storage
+Settings like the chosen base branch, the viewed-file ticks, and the view
+toggles (show reviews, hide test files) are **not** stored in VS Code settings
+or in the repo. They live in the extension's private per-workspace storage
 directory, which VS Code provides via `context.storageUri`.
 
 - **Where:** a folder VS Code keys to the *opened folder path*, under your user

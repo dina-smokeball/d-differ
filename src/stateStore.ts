@@ -14,18 +14,24 @@ interface BranchState {
   viewed?: Record<string, string>;
 }
 
-/** Shape of the per-workspace state persisted to disk, keyed by branch name. */
+/**
+ * Shape of the per-workspace state persisted to disk. View preferences live at
+ * the root (they belong to the workspace, not to a branch); everything keyed
+ * by branch name sits under `branches`.
+ */
 interface State {
   branches?: Record<string, BranchState>;
+  showReviews?: boolean;
+  hideTestFiles?: boolean;
 }
 
 /**
  * Reads and writes per-workspace state as a JSON file inside the extension's
- * private storage directory (context.storageUri). State is keyed by the
- * current branch, so each branch keeps its own base branch (and, later, its
- * own viewed-files set). The directory is keyed by the opened folder path, so
- * two clones of the same repo stay independent and nothing lands in the repo
- * or VS Code settings.
+ * private storage directory (context.storageUri). Branch-specific state (base
+ * branch, viewed files) is keyed by the current branch; view preferences live
+ * at the root. The directory is keyed by the opened folder path, so two clones
+ * of the same repo stay independent and nothing lands in the repo or VS Code
+ * settings.
  */
 export class StateStore {
   private readonly fileUri: vscode.Uri;
@@ -84,6 +90,22 @@ export class StateStore {
     const branches = { ...(state.branches ?? {}) };
     branches[key] = fn(branches[key] ?? {});
     await this.write({ ...state, branches });
+  }
+
+  async getShowReviews(): Promise<boolean> {
+    return (await this.read()).showReviews ?? true;
+  }
+
+  async setShowReviews(value: boolean): Promise<void> {
+    await this.write({ ...(await this.read()), showReviews: value });
+  }
+
+  async getHideTestFiles(): Promise<boolean> {
+    return (await this.read()).hideTestFiles ?? false;
+  }
+
+  async setHideTestFiles(value: boolean): Promise<void> {
+    await this.write({ ...(await this.read()), hideTestFiles: value });
   }
 
   async getBaseBranch(): Promise<string | undefined> {

@@ -2,7 +2,7 @@
   "name": "d-differ",
   "displayName": "Branch Diff",
   "description": "Show diff between the current branch and a base branch",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "publisher": "d-pod",
   "repository": {
     "type": "git",
@@ -128,16 +128,6 @@
     "configuration": {
       "title": "Branch Diff",
       "properties": {
-        "showDiff.hideTestFiles": {
-          "type": "boolean",
-          "default": false,
-          "description": "Hide test/spec files and lockfiles from the changed files list."
-        },
-        "showDiff.showReviews": {
-          "type": "boolean",
-          "default": true,
-          "description": "When opening a file's diff, also open its AI review (if one exists under .local/reviews) beside it."
-        },
         "showDiff.testFilePatterns": {
           "type": "array",
           "items": {
@@ -150,7 +140,7 @@
             "**/__mocks__/**",
             "**/package-lock.json"
           ],
-          "description": "Glob patterns for files treated as tests/lockfiles (hidden when showDiff.hideTestFiles is true)."
+          "description": "Glob patterns for files treated as tests/lockfiles (hidden when the Toggle Test Files button hides them)."
         }
       }
     }

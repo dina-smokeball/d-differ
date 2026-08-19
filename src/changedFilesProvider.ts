@@ -58,7 +58,7 @@ export class ChangedFilesProvider implements vscode.TreeDataProvider<Node> {
       const all = await this.git.changedFiles(base);
       viewed = await this.store.getViewed();
 
-      const hide = cfg.get<boolean>('hideTestFiles', false);
+      const hide = await this.store.getHideTestFiles();
       const patterns = cfg.get<string[]>('testFilePatterns', []);
 
       if (hide) {
