@@ -29,6 +29,16 @@ the file flips to **changed since viewed** (it keeps its status icon and shows
 that note), telling you exactly what moved since your last look. Viewed marks
 are stored per branch.
 
+## Filtering changed files
+
+A **Filter** box sits above the tree. Type part of a file name or path (e.g.
+`auth`, `.tsx`, `components/`) and the tree narrows as you type; the line under
+the box tells you how many files match, and the folder chips beneath it are
+one-click shortcuts to the folders the changes live in (click the active chip
+again to clear). Press Escape or the ✕ in the box to clear it. The filter icon in the **Changed Files** header (or **Branch Diff:
+Filter Changed Files**) jumps to the box, and a clear-filter icon appears there
+while a filter is active.
+
 ## Showing AI reviews
 
 If the `d-branch-review` Claude Code skill has reviewed the branch, it writes
@@ -53,7 +63,7 @@ toggles (show reviews, hide test files) are **not** stored in VS Code settings
 or in the repo. They live in the extension's private per-workspace storage
 directory, which VS Code provides via `context.storageUri`.
 
-- **Where:** a folder VS Code keys to the *opened folder path*, under your user
+- **Where:** a folder VS Code keys to the _opened folder path_, under your user
   profile. On macOS:
 
   ```

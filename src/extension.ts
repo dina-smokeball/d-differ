@@ -9,6 +9,7 @@ import {
 } from './baseContentProvider';
 import { StateStore, DEFAULT_BASE_BRANCH } from './stateStore';
 import { ReviewService } from './reviewService';
+import { FilterViewProvider } from './filterViewProvider';
 
 export async function activate(context: vscode.ExtensionContext) {
   const folder = vscode.workspace.workspaceFolders?.[0];
@@ -29,6 +30,15 @@ export async function activate(context: vscode.ExtensionContext) {
     showCollapseAll: true,
   });
   context.subscriptions.push(treeView);
+
+  const filterView = new FilterViewProvider(
+    () => provider.getFilter(),
+    () => provider.getFilterState(),
+  );
+  context.subscriptions.push(
+    vscode.window.registerWebviewViewProvider(FilterViewProvider.viewId, filterView),
+    provider.onDidChangeTreeData(() => filterView.sync()),
+  );
 
   const baseProvider = new BaseContentProvider(git);
   context.subscriptions.push(
@@ -57,11 +67,26 @@ export async function activate(context: vscode.ExtensionContext) {
   const updateTitle = async () => {
     try {
       const [branch, base] = await Promise.all([git.currentBranch(), getBase()]);
-      treeView.description = `${branch} ↔ ${base}`;
+      const filter = provider.getFilter();
+      treeView.description = filter
+        ? `${branch} ↔ ${base} [filter: "${filter}"]`
+        : `${branch} ↔ ${base}`;
     } catch {
       // ignore
     }
   };
+
+  const applyFilter = async (query: string) => {
+    provider.setFilter(query);
+    await vscode.commands.executeCommand(
+      'setContext',
+      'showDiff.isFiltered',
+      Boolean(provider.getFilter()),
+    );
+    await provider.refresh();
+    await updateTitle();
+  };
+  context.subscriptions.push(filterView.onDidChangeFilter(applyFilter));
 
   context.subscriptions.push(
     vscode.commands.registerCommand('showDiff.refresh', async () => {
@@ -123,6 +148,14 @@ export async function activate(context: vscode.ExtensionContext) {
         2000,
       );
     }),
+
+    vscode.commands.registerCommand('showDiff.filterFiles', () =>
+      filterView.focus(),
+    ),
+
+    vscode.commands.registerCommand('showDiff.clearFilter', () =>
+      applyFilter(''),
+    ),
 
     vscode.commands.registerCommand(
       'showDiff.openDiff',
@@ -194,6 +227,11 @@ export async function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(headWatcher);
   }
 
+  await vscode.commands.executeCommand(
+    'setContext',
+    'showDiff.isFiltered',
+    false,
+  );
   updateStatusBar();
   await provider.refresh();
   await updateTitle();

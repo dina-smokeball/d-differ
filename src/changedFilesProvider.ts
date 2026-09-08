@@ -3,6 +3,7 @@ import * as path from 'path';
 import { GitService, ChangedFile } from './gitService';
 import { StateStore, DEFAULT_BASE_BRANCH } from './stateStore';
 import { matchesAny } from './glob';
+import { folderChips, FolderChip } from './folderChips';
 
 type Node = FolderNode | FileNode | MessageNode;
 
@@ -35,11 +36,28 @@ export class ChangedFilesProvider implements vscode.TreeDataProvider<Node> {
   private hiddenCount = 0;
   private error: string | undefined;
   private loaded = false;
+  private filterQuery = '';
+  private totalCount = 0;
+  private shownCount = 0;
+  private chips: FolderChip[] = [];
 
   constructor(
     private readonly git: GitService,
     private readonly store: StateStore,
   ) {}
+
+  getFilter(): string {
+    return this.filterQuery;
+  }
+
+  setFilter(query: string): void {
+    this.filterQuery = query.trim();
+  }
+
+  /** What the filter box displays: match counts plus folder shortcuts. */
+  getFilterState(): { shown: number; total: number; chips: FolderChip[] } {
+    return { shown: this.shownCount, total: this.totalCount, chips: this.chips };
+  }
 
   async refresh(): Promise<void> {
     await this.load();
@@ -69,15 +87,26 @@ export class ChangedFilesProvider implements vscode.TreeDataProvider<Node> {
         this.hiddenCount = 0;
         files = all;
       }
+
+      this.totalCount = files.length;
+      this.chips = folderChips(files.map(f => f.path));
+      if (this.filterQuery) {
+        const q = this.filterQuery.toLowerCase();
+        files = files.filter(f => f.path.toLowerCase().includes(q));
+      }
+      this.shownCount = files.length;
     } catch (e) {
       this.error = e instanceof Error ? e.message : String(e);
       this.root = [];
       this.hiddenCount = 0;
+      this.totalCount = 0;
+      this.shownCount = 0;
+      this.chips = [];
       this.loaded = true;
       return;
     }
     this.root = buildTree(files, viewed);
-    if (this.hiddenCount > 0) {
+    if (this.hiddenCount > 0 && !this.filterQuery) {
       const s = this.hiddenCount === 1 ? '' : 's';
       this.root.push({
         kind: 'message',
@@ -101,6 +130,15 @@ export class ChangedFilesProvider implements vscode.TreeDataProvider<Node> {
         return [{ kind: 'message', text: `Error: ${this.error}`, variant: 'error' }];
       }
       if (this.root.length === 0) {
+        if (this.filterQuery) {
+          return [
+            {
+              kind: 'message',
+              text: `No files matching "${this.filterQuery}"`,
+              variant: 'info',
+            },
+          ];
+        }
         return [{ kind: 'message', text: 'No changed files', variant: 'info' }];
       }
       return this.root;

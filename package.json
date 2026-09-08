@@ -2,7 +2,7 @@
   "name": "d-differ",
   "displayName": "Branch Diff",
   "description": "Show diff between the current branch and a base branch",
-  "version": "0.0.2",
+  "version": "0.0.5",
   "publisher": "d-pod",
   "repository": {
     "type": "git",
@@ -31,8 +31,15 @@
     "views": {
       "showDiff": [
         {
+          "id": "showDiff.filter",
+          "type": "webview",
+          "name": "Filter",
+          "initialSize": 1
+        },
+        {
           "id": "showDiff.changedFiles",
-          "name": "Changed Files"
+          "name": "Changed Files",
+          "initialSize": 9
         }
       ]
     },
@@ -60,6 +67,18 @@
         "title": "Toggle File Reviews",
         "category": "Branch Diff",
         "icon": "$(book)"
+      },
+      {
+        "command": "showDiff.filterFiles",
+        "title": "Filter Changed Files",
+        "category": "Branch Diff",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "showDiff.clearFilter",
+        "title": "Clear Filter",
+        "category": "Branch Diff",
+        "icon": "$(clear-all)"
       },
       {
         "command": "showDiff.openDiff",
@@ -119,9 +138,19 @@
           "group": "navigation@3"
         },
         {
-          "command": "showDiff.refresh",
+          "command": "showDiff.filterFiles",
           "when": "view == showDiff.changedFiles",
           "group": "navigation@4"
+        },
+        {
+          "command": "showDiff.clearFilter",
+          "when": "view == showDiff.changedFiles && showDiff.isFiltered",
+          "group": "navigation@5"
+        },
+        {
+          "command": "showDiff.refresh",
+          "when": "view == showDiff.changedFiles",
+          "group": "navigation@6"
         }
       ]
     },
